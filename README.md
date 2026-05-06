@@ -7,15 +7,26 @@ Dashboard for **Name**, **Number**, **Network**, **Business Name**, and which **
 In PowerShell, from this folder:
 
 ```bash
-python -m pip install -r requirements.txt
-streamlit run app.py --server.headless true --browser.gatherUsageStats false
+npm install
+npm run dev
 ```
 
-Then open `http://localhost:8501`.
+Then open `http://localhost:3000`.
+
+### Deploy (Vercel)
+
+- Import the GitHub repo into Vercel
+- No special build settings required (Vercel auto-detects Next.js)
 
 ### Data location
 
-By default the app loads Excel files from `./database/*.xlsx` (and ignores temporary Excel lock files that start with `~$`).
+```bash
+./database/*.xlsx
+```
 
-If your folder is different, change **Database folder** in the sidebar.
+The dashboard API reads Excel files from `./database` on the server. For Vercel, commit your `database/*.xlsx` files into the repo.
+
+### Legacy (Streamlit)
+
+The old Streamlit version is still in `app.py` if you need it locally.
 

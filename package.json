@@ -1,0 +1,31 @@
+{
+  "name": "aif-data---copy",
+  "version": "1.0.0",
+  "description": "Dashboard for **Name**, **Number**, **Network**, **Business Name**, and which **AIF** (event/source file) each record came from.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "node -e \"console.log('Lint not configured (optional).')\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "next": "^16.2.4",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "recharts": "^3.8.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.14",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^6.0.3"
+  }
+}
