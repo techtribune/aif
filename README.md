@@ -33,6 +33,20 @@ This app can be restricted to authorized users using Supabase Auth (Email + Pass
 
 Then deploy. The site will redirect to `/login` until you sign in.
 
+### Uploading new XLSX files (Supabase Storage)
+
+Uploads require Supabase Storage (Vercel deployments cannot write to the repo filesystem).
+
+1) In Supabase: **Storage → Create bucket**
+   - Bucket name: `database` (or set `AIF_STORAGE_BUCKET` to your bucket name)
+2) Add Storage access policies so authenticated users can read + upload objects in that bucket.
+3) In Vercel, set:
+
+- `AIF_USE_SUPABASE_STORAGE=true`
+- `AIF_STORAGE_BUCKET=database` (optional; defaults to `database`)
+
+After that, the sidebar **Add new XLSX** control will upload to Storage and the dashboard will refresh.
+
 ### Preview Environment (Pre-production)
 
 Preview environments let you deploy and test changes live **without affecting Production**.

@@ -52,27 +52,39 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<AifRecordSet>({ records: [], loadWarnings: [] });
 
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+
   const [search, setSearch] = useState("");
   const [selectedAif, setSelectedAif] = useState<string[]>([]);
   const [selectedNetwork, setSelectedNetwork] = useState<string[]>([]);
   const [duplicateMode, setDuplicateMode] = useState<DuplicateMode>("All");
 
+  async function reload() {
+    setLoading(true);
+    setError(null);
+    try {
+      const q = new URLSearchParams();
+      if (databaseDir.trim()) q.set("databaseDir", databaseDir.trim());
+      const res = await fetch(`/api/records?${q.toString()}`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      const json = (await res.json()) as AifRecordSet;
+      setData(json);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
     let cancelled = false;
     async function run() {
-      setLoading(true);
-      setError(null);
       try {
-        const q = new URLSearchParams();
-        if (databaseDir.trim()) q.set("databaseDir", databaseDir.trim());
-        const res = await fetch(`/api/records?${q.toString()}`, { cache: "no-store" });
-        if (!res.ok) throw new Error(`Request failed (${res.status})`);
-        const json = (await res.json()) as AifRecordSet;
+        await reload();
         if (cancelled) return;
-        setData(json);
       } catch (e) {
         if (cancelled) return;
-        setError(String(e));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -82,6 +94,26 @@ export default function Dashboard() {
       cancelled = true;
     };
   }, [databaseDir]);
+
+  async function uploadFile(file: File) {
+    setUploading(true);
+    setUploadMessage(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/upload-xlsx", { method: "POST", body: form });
+      const json = (await res.json()) as { ok?: boolean; error?: string; name?: string };
+      if (!res.ok) {
+        throw new Error(json.error || `Upload failed (${res.status})`);
+      }
+      setUploadMessage(`Uploaded: ${json.name ?? file.name}`);
+      await reload();
+    } catch (e) {
+      setUploadMessage(String(e));
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const aifOptions = useMemo(() => uniqSorted(data.records.map((r) => toStr(r.AIF))), [data.records]);
   const networkOptions = useMemo(
@@ -252,6 +284,27 @@ export default function Dashboard() {
           <div className="text-sm font-semibold text-zinc-200">AIF Data</div>
           <div className="mt-1 text-xs text-zinc-400">Loads all *.xlsx in the server folder.</div>
         </div>
+
+        <label className="block text-xs font-medium text-zinc-300">Add new XLSX</label>
+        <input
+          type="file"
+          accept=".xlsx"
+          disabled={uploading}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void uploadFile(f);
+            e.currentTarget.value = "";
+          }}
+          className="mt-1 block w-full text-sm text-zinc-300 file:mr-3 file:rounded-lg file:border file:border-white/10 file:bg-white/10 file:px-3 file:py-2 file:text-sm file:text-white hover:file:bg-white/15 disabled:opacity-70"
+        />
+        <div className="mt-1 text-xs text-zinc-500">
+          If the same filename already exists, upload will be blocked.
+        </div>
+        {uploadMessage ? (
+          <div className="mt-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-zinc-200">
+            {uploadMessage}
+          </div>
+        ) : null}
 
         <label className="block text-xs font-medium text-zinc-300">Database folder (advanced)</label>
         <input

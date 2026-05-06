@@ -13,7 +13,13 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const databaseDir = url.searchParams.get("databaseDir") ?? undefined;
 
-  const payload = await loadAllAifRecords(databaseDir || undefined);
+  const storageBucket = process.env.AIF_STORAGE_BUCKET || "database";
+  const useSupabaseStorage = (process.env.AIF_USE_SUPABASE_STORAGE || "").toLowerCase() === "true";
+
+  const payload = await loadAllAifRecords(databaseDir || undefined, {
+    supabase: useSupabaseStorage ? supabase : undefined,
+    storageBucket,
+  });
   return NextResponse.json(payload, {
     headers: {
       // Helps ensure Vercel doesn't serve stale data if you change database files.

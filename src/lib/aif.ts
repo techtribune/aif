@@ -6,8 +6,10 @@ import path from "node:path";
 import * as XLSX from "xlsx";
 
 import type { AifRecord, AifRecordSet } from "@/lib/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const DEFAULT_DATABASE_DIR = path.join(process.cwd(), "database");
+const DEFAULT_STORAGE_BUCKET = "database";
 
 function norm(v: unknown): string {
   if (v === null || v === undefined) return "";
@@ -66,22 +68,14 @@ function toCleanString(v: unknown): string {
   return s;
 }
 
-async function readAifExcel(filePath: string): Promise<{ records: AifRecord[]; warnings: string[] }> {
+function parseAifExcelBuffer(buf: Buffer, fileName: string): { records: AifRecord[]; warnings: string[] } {
   const warnings: string[] = [];
-  const name = path.basename(filePath);
-
-  let buf: Buffer;
-  try {
-    buf = await fs.readFile(filePath);
-  } catch (e) {
-    return { records: [], warnings: [`Failed to read \`${name}\`: ${String(e)}`] };
-  }
 
   let wb: XLSX.WorkBook;
   try {
     wb = XLSX.read(buf, { type: "buffer" });
   } catch (e) {
-    return { records: [], warnings: [`Failed to parse \`${name}\`: ${String(e)}`] };
+    return { records: [], warnings: [`Failed to parse \`${fileName}\`: ${String(e)}`] };
   }
 
   const firstSheet = wb.SheetNames[0];
@@ -93,7 +87,7 @@ async function readAifExcel(filePath: string): Promise<{ records: AifRecord[]; w
     return {
       records: [],
       warnings: [
-        `Could not find table header row in \`${name}\` (expected columns like NAME/NUMBER/NETWORK).`,
+        `Could not find table header row in \`${fileName}\` (expected columns like NAME/NUMBER/NETWORK).`,
       ],
     };
   }
@@ -120,7 +114,7 @@ async function readAifExcel(filePath: string): Promise<{ records: AifRecord[]; w
   const ixNetwork = idx(networkCol);
   const ixBusiness = idx(businessCol);
 
-  const aif = path.parse(name).name;
+  const aif = path.parse(fileName).name;
   const out: AifRecord[] = [];
 
   for (let r = headerRow + 1; r < rows.length; r++) {
@@ -140,7 +134,18 @@ async function readAifExcel(filePath: string): Promise<{ records: AifRecord[]; w
   return { records: out, warnings };
 }
 
-export async function loadAllAifRecords(databaseDir = DEFAULT_DATABASE_DIR): Promise<AifRecordSet> {
+async function readAifExcelFromDisk(filePath: string): Promise<{ records: AifRecord[]; warnings: string[] }> {
+  const name = path.basename(filePath);
+  let buf: Buffer;
+  try {
+    buf = await fs.readFile(filePath);
+  } catch (e) {
+    return { records: [], warnings: [`Failed to read \`${name}\`: ${String(e)}`] };
+  }
+  return parseAifExcelBuffer(buf, name);
+}
+
+async function loadAllAifRecordsFromDisk(databaseDir: string): Promise<AifRecordSet> {
   let stat;
   try {
     stat = await fs.stat(databaseDir);
@@ -166,7 +171,7 @@ export async function loadAllAifRecords(databaseDir = DEFAULT_DATABASE_DIR): Pro
   const warnings: string[] = [];
 
   for (const file of xlsx) {
-    const { records: r, warnings: w } = await readAifExcel(path.join(databaseDir, file));
+    const { records: r, warnings: w } = await readAifExcelFromDisk(path.join(databaseDir, file));
     warnings.push(...w);
     records.push(...r);
   }
@@ -176,5 +181,61 @@ export async function loadAllAifRecords(databaseDir = DEFAULT_DATABASE_DIR): Pro
   }
 
   return { records, loadWarnings: warnings };
+}
+
+async function loadAllAifRecordsFromSupabaseStorage(
+  supabase: SupabaseClient,
+  bucket = DEFAULT_STORAGE_BUCKET,
+): Promise<AifRecordSet> {
+  const { data: objects, error } = await supabase.storage.from(bucket).list("", {
+    limit: 1000,
+    sortBy: { column: "name", order: "asc" },
+  });
+
+  if (error) return { records: [], loadWarnings: [`Failed to list bucket \`${bucket}\`: ${error.message}`] };
+  const xlsx = (objects ?? [])
+    .map((o) => o.name)
+    .filter((n) => n.toLowerCase().endsWith(".xlsx") && !n.startsWith("~$"));
+
+  if (!xlsx.length) {
+    return { records: [], loadWarnings: [`No .xlsx files found in Supabase Storage bucket \`${bucket}\``] };
+  }
+
+  const records: AifRecord[] = [];
+  const warnings: string[] = [];
+
+  for (const name of xlsx) {
+    const { data, error: dlError } = await supabase.storage.from(bucket).download(name);
+    if (dlError || !data) {
+      warnings.push(`Failed to download \`${name}\`: ${dlError?.message ?? "unknown error"}`);
+      continue;
+    }
+    const ab = await data.arrayBuffer();
+    const buf = Buffer.from(ab);
+    const parsed = parseAifExcelBuffer(buf, name);
+    warnings.push(...parsed.warnings);
+    records.push(...parsed.records);
+  }
+
+  if (!records.length) {
+    return {
+      records: [],
+      loadWarnings: warnings.length
+        ? warnings
+        : [`Found files in bucket \`${bucket}\`, but none could be parsed.`],
+    };
+  }
+
+  return { records, loadWarnings: warnings };
+}
+
+export async function loadAllAifRecords(
+  databaseDir = DEFAULT_DATABASE_DIR,
+  opts?: { supabase?: SupabaseClient; storageBucket?: string },
+): Promise<AifRecordSet> {
+  if (opts?.supabase) {
+    return loadAllAifRecordsFromSupabaseStorage(opts.supabase, opts.storageBucket ?? DEFAULT_STORAGE_BUCKET);
+  }
+  return loadAllAifRecordsFromDisk(databaseDir);
 }
 
