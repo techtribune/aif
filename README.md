@@ -61,6 +61,10 @@ Then:
 - Admin page: `/admin` (creates events and generates registration links)
 - Public registration page: `/register/<event-slug>`
 
+To include event registrations inside the main Excel dashboard, set:
+
+- `AIF_INCLUDE_REGISTRATIONS=true`
+
 ### Preview Environment (Pre-production)
 
 Preview environments let you deploy and test changes live **without affecting Production**.
