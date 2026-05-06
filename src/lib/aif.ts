@@ -37,7 +37,12 @@ function pickCol(
   columns: string[],
   opts: { exact: string[]; contains?: string[] },
 ): string | null {
-  const colsNorm = new Map(columns.map((c) => [norm(c), c] as const));
+  // Avoid `new Map(columns.map(...))` because sparse arrays can produce `undefined` entries.
+  const colsNorm = new Map<string, string>();
+  for (let i = 0; i < columns.length; i++) {
+    const c = columns[i] ?? "";
+    colsNorm.set(norm(c), c);
+  }
 
   for (const key of opts.exact) {
     const hit = colsNorm.get(norm(key));
@@ -93,7 +98,8 @@ async function readAifExcel(filePath: string): Promise<{ records: AifRecord[]; w
     };
   }
 
-  const columns = (rows[headerRow] ?? []).map((v) => norm(v)).map((v) => v || "");
+  // Use Array.from to avoid sparse arrays (which can break downstream Map construction).
+  const columns = Array.from(rows[headerRow] ?? [], (v) => norm(v) || "");
   const nameCol = pickCol(columns, { exact: ["NAME"], contains: ["NAME"] });
   const numberCol = pickCol(columns, { exact: ["NUMBER"], contains: ["NUMBER", "MOBILE", "CONTACT"] });
   const networkCol = pickCol(columns, { exact: ["NETWORK"], contains: ["NETWORK"] });
