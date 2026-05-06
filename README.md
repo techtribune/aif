@@ -19,6 +19,20 @@ Then open `http://localhost:3000`.
 - No special build settings required (Vercel auto-detects Next.js)
 - Ensure the **Production Branch** is set to `main` in Vercel Project Settings
 
+### Auth (Supabase)
+
+This app can be restricted to authorized users using Supabase Auth (Email + Password).
+
+1) Create a Supabase project
+2) In Supabase: **Authentication → Providers → Email** (enable Email/Password)
+3) Create users in **Authentication → Users**
+4) Set these environment variables in Vercel (and optionally in a local `.env.local`):
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+Then deploy. The site will redirect to `/login` until you sign in.
+
 ### Preview Environment (Pre-production)
 
 Preview environments let you deploy and test changes live **without affecting Production**.
