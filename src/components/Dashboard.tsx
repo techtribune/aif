@@ -291,6 +291,9 @@ export default function Dashboard() {
         >
           Admin (create event registration link)
         </a>
+        <div className="mb-4 text-xs text-zinc-500">
+          Note: new AIF events/registrations won’t appear in this Excel dashboard. They’re managed in <span className="font-mono">/admin</span>.
+        </div>
 
         <label className="block text-xs font-medium text-zinc-300">Add new XLSX</label>
         <input
