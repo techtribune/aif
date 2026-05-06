@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import type { AifRecord, AifRecordSet, DuplicateMode } from "@/lib/types";
@@ -122,12 +122,25 @@ export default function Dashboard() {
   );
 
   // Default-select all when options change.
+  // Also: if user previously had "all selected", keep that behavior when new options appear.
+  const prevAifOptions = useRef<string[]>([]);
+  const prevNetworkOptions = useRef<string[]>([]);
   useEffect(() => {
+    const prev = prevAifOptions.current;
+    const hadAllSelected = selectedAif.length && prev.length && selectedAif.length === prev.length;
     if (!selectedAif.length && aifOptions.length) setSelectedAif(aifOptions);
-  }, [aifOptions, selectedAif.length]);
+    else if (hadAllSelected && aifOptions.length) setSelectedAif(aifOptions);
+    prevAifOptions.current = aifOptions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aifOptions]);
   useEffect(() => {
+    const prev = prevNetworkOptions.current;
+    const hadAllSelected = selectedNetwork.length && prev.length && selectedNetwork.length === prev.length;
     if (!selectedNetwork.length && networkOptions.length) setSelectedNetwork(networkOptions);
-  }, [networkOptions, selectedNetwork.length]);
+    else if (hadAllSelected && networkOptions.length) setSelectedNetwork(networkOptions);
+    prevNetworkOptions.current = networkOptions;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [networkOptions]);
 
   const filtered = useMemo(() => {
     let rows = data.records.slice();
