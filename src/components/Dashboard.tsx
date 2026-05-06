@@ -285,6 +285,13 @@ export default function Dashboard() {
           <div className="mt-1 text-xs text-zinc-400">Loads all *.xlsx in the server folder.</div>
         </div>
 
+        <a
+          href="/admin"
+          className="mb-3 inline-flex w-full items-center justify-center rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-200 hover:bg-white/10"
+        >
+          Admin (create event registration link)
+        </a>
+
         <label className="block text-xs font-medium text-zinc-300">Add new XLSX</label>
         <input
           type="file"

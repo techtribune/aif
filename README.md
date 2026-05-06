@@ -47,6 +47,20 @@ Uploads require Supabase Storage (Vercel deployments cannot write to the repo fi
 
 After that, the sidebar **Add new XLSX** control will upload to Storage and the dashboard will refresh.
 
+### AIF Events: digital attendee registration
+
+This repo includes a simple event + attendee registration system backed by Supabase Postgres.
+
+1) Run the SQL in `supabase.sql` in Supabase **SQL Editor**
+2) Set these Vercel environment variables:
+
+- `SUPABASE_SERVICE_ROLE_KEY` (Supabase Project Settings → API → service_role key)
+- `AIF_ADMIN_EMAILS` (comma-separated, e.g. `you@company.com,admin@company.com`)
+
+Then:
+- Admin page: `/admin` (creates events and generates registration links)
+- Public registration page: `/register/<event-slug>`
+
 ### Preview Environment (Pre-production)
 
 Preview environments let you deploy and test changes live **without affecting Production**.
