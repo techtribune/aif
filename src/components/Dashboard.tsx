@@ -291,8 +291,8 @@ export default function Dashboard() {
   }, [filtered]);
 
   return (
-    <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6">
-      <aside className="w-[320px] shrink-0 rounded-2xl border border-white/10 bg-white/5 p-4">
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 lg:flex-row">
+      <aside className="w-full shrink-0 rounded-2xl border border-white/10 bg-white/5 p-4 lg:w-[320px]">
         <div className="mb-4">
           <div className="text-sm font-semibold text-zinc-200">AIF Data</div>
           <div className="mt-1 text-xs text-zinc-400">Loads all *.xlsx in the server folder.</div>

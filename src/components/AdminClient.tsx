@@ -234,7 +234,7 @@ export default function AdminClient() {
         {loading ? (
           <div className="text-sm text-zinc-300">Loading…</div>
         ) : events.length ? (
-          <div className="overflow-hidden rounded-xl border border-white/10">
+          <div className="overflow-x-auto rounded-xl border border-white/10">
             <table className="min-w-full text-sm">
               <thead className="bg-zinc-950">
                 <tr className="text-left text-xs uppercase tracking-wide text-zinc-400">
@@ -304,7 +304,7 @@ export default function AdminClient() {
             </button>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-white/10">
+          <div className="overflow-x-auto rounded-xl border border-white/10">
             <table className="min-w-full text-sm">
               <thead className="bg-zinc-950">
                 <tr className="text-left text-xs uppercase tracking-wide text-zinc-400">
@@ -369,7 +369,7 @@ export default function AdminClient() {
           </div>
 
           {winners.length ? (
-            <div className="overflow-hidden rounded-xl border border-white/10">
+            <div className="overflow-x-auto rounded-xl border border-white/10">
               <table className="min-w-full text-sm">
                 <thead className="bg-zinc-950">
                   <tr className="text-left text-xs uppercase tracking-wide text-zinc-400">

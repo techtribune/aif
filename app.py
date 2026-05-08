@@ -172,6 +172,23 @@ def _inject_modern_css() -> None:
 
           /* Make dataframe feel less cramped */
           div[data-testid="stDataFrame"] { border-radius: 14px; overflow: hidden; }
+
+          /* Mobile: prevent horizontal overflow from Streamlit columns/tables */
+          @media (max-width: 860px) {
+            /* Streamlit's horizontal blocks (columns) should wrap into a single column */
+            div[data-testid="stHorizontalBlock"] {
+              flex-wrap: wrap !important;
+              gap: 0.75rem !important;
+            }
+            div[data-testid="column"] {
+              width: 100% !important;
+              flex: 1 1 100% !important;
+              min-width: 0 !important;
+            }
+
+            /* Avoid edge-to-edge UI on phones */
+            .block-container { padding-left: 1rem; padding-right: 1rem; }
+          }
         </style>
         """,
         unsafe_allow_html=True,
@@ -192,17 +209,13 @@ def _kpi_card(title: str, value: str, subtitle: str = "") -> None:
 
 
 def main() -> None:
-    st.set_page_config(page_title="AIF Dashboard", page_icon="📊", layout="wide")
+    # "centered" behaves better on phones; the CSS above makes desktop still feel roomy.
+    st.set_page_config(page_title="AIF Dashboard", page_icon="📊", layout="centered")
     _inject_modern_css()
 
-    left, right = st.columns([0.7, 0.3], vertical_alignment="center")
-    with left:
-        st.title("AIF Dashboard")
-        st.caption("Search Name, Number, Network, Business Name — and see which AIF event (source file) each record came from.")
-    with right:
-        st.write("")
-        st.write("")
-        st.caption("Use the download buttons below.")
+    st.title("AIF Dashboard")
+    st.caption("Search Name, Number, Network, Business Name — and see which AIF event (source file) each record came from.")
+    st.caption("Tip: use the download buttons below.")
 
     with st.sidebar:
         st.subheader("AIF Data")
