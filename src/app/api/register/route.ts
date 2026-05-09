@@ -28,10 +28,11 @@ export async function POST(req: Request) {
 
   const { data: event, error: evErr } = await supabase
     .from("aif_events")
-    .select("id")
+    .select("id,ended_at")
     .eq("slug", eventSlug)
     .maybeSingle();
   if (evErr || !event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
+  if (event.ended_at) return NextResponse.json({ error: "Registration is closed for this event" }, { status: 403 });
 
   const inferred = inferNetworkClass(contactNumberRaw);
   const network =

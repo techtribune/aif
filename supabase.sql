@@ -8,8 +8,13 @@ create table if not exists public.aif_events (
   location text,
   event_date date,
   created_at timestamptz not null default now(),
-  created_by uuid
+  created_by uuid,
+  -- When set, event is hidden from admin and closed to new registrations; rows + registrations remain for worksheet/history.
+  ended_at timestamptz
 );
+
+-- For databases created before ended_at existed:
+alter table public.aif_events add column if not exists ended_at timestamptz;
 
 create table if not exists public.aif_registrations (
   id uuid primary key default gen_random_uuid(),

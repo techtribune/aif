@@ -37,6 +37,8 @@ export default function AdminClient() {
     }>
   >([]);
 
+  const [busyEventId, setBusyEventId] = useState<string | null>(null);
+
   const [raffleCount, setRaffleCount] = useState(3);
   const [raffleUnique, setRaffleUnique] = useState(true);
   const [winners, setWinners] = useState<
@@ -52,10 +54,12 @@ export default function AdminClient() {
       const res = await fetch("/api/admin/events", { cache: "no-store" });
       const json = (await res.json()) as { events?: AifEvent[]; error?: string };
       if (!res.ok) throw new Error(json.error || `Failed (${res.status})`);
-      setEvents(json.events ?? []);
-      if (!selectedEventId && (json.events?.length ?? 0)) {
-        setSelectedEventId(json.events![0].id);
-      }
+      const list = json.events ?? [];
+      setEvents(list);
+      setSelectedEventId((prev) => {
+        if (prev && list.some((e) => e.id === prev)) return prev;
+        return list[0]?.id ?? "";
+      });
     } catch (e) {
       setError(String(e));
     } finally {
@@ -103,6 +107,56 @@ export default function AdminClient() {
     void loadRegistrations(selectedEventId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, selectedEventId]);
+
+  async function endEvent(ev: AifEvent) {
+    if (
+      !window.confirm(
+        `End “${ev.title}”? It will disappear from this admin list and close online registration. Registration data stays in the worksheet view.`,
+      )
+    ) {
+      return;
+    }
+    setBusyEventId(ev.id);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/events", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId: ev.id }),
+      });
+      const json = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok) throw new Error(json.error || `Failed (${res.status})`);
+      await load();
+    } catch (e2) {
+      setError(String(e2));
+    } finally {
+      setBusyEventId(null);
+    }
+  }
+
+  async function deleteEvent(ev: AifEvent) {
+    if (
+      !window.confirm(
+        `Permanently delete “${ev.title}” and all of its registrations? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+    setBusyEventId(ev.id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/events?eventId=${encodeURIComponent(ev.id)}`, {
+        method: "DELETE",
+      });
+      const json = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok) throw new Error(json.error || `Failed (${res.status})`);
+      await load();
+    } catch (e2) {
+      setError(String(e2));
+    } finally {
+      setBusyEventId(null);
+    }
+  }
 
   async function createEvent(e: React.FormEvent) {
     e.preventDefault();
@@ -242,6 +296,7 @@ export default function AdminClient() {
                   <th className="px-3 py-2">Date</th>
                   <th className="px-3 py-2">Slug</th>
                   <th className="px-3 py-2">Registration link</th>
+                  <th className="px-3 py-2 whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10">
@@ -259,6 +314,28 @@ export default function AdminClient() {
                       >
                         {origin ? `${origin}/register/${ev.slug}` : `/register/${ev.slug}`}
                       </a>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={busyEventId === ev.id}
+                          onClick={() => void endEvent(ev)}
+                          className="rounded-md border border-amber-400/30 bg-amber-400/10 px-2 py-1 text-xs text-amber-100 hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+                          title="Hide from admin; keep registrations in worksheet"
+                        >
+                          {busyEventId === ev.id ? "…" : "End"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busyEventId === ev.id}
+                          onClick={() => void deleteEvent(ev)}
+                          className="rounded-md border border-red-400/35 bg-red-400/10 px-2 py-1 text-xs text-red-100 hover:bg-red-400/15 disabled:cursor-not-allowed disabled:opacity-50"
+                          title="Remove event and all registrations"
+                        >
+                          {busyEventId === ev.id ? "…" : "Delete"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

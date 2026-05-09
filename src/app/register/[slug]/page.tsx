@@ -11,11 +11,13 @@ export default async function RegisterPage({ params }: { params: Promise<{ slug:
   const supabase = createSupabaseAdminClient();
   const { data: event, error } = await supabase
     .from("aif_events")
-    .select("id,slug,title,location,event_date,created_at")
+    .select("id,slug,title,location,event_date,created_at,ended_at")
     .eq("slug", slug)
     .maybeSingle();
 
   if (error || !event) return notFound();
+
+  const closed = Boolean(event.ended_at);
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-50">
@@ -27,11 +29,18 @@ export default async function RegisterPage({ params }: { params: Promise<{ slug:
             {event.location ? <div>Location: {event.location}</div> : null}
             {event.event_date ? <div>Date: {event.event_date}</div> : null}
           </div>
+          {closed ? (
+            <p className="mt-4 rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
+              Online registration for this event is closed.
+            </p>
+          ) : null}
         </div>
 
-        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-6">
-          <RegisterForm eventSlug={event.slug} />
-        </div>
+        {!closed ? (
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-6">
+            <RegisterForm eventSlug={event.slug} />
+          </div>
+        ) : null}
       </div>
     </main>
   );
