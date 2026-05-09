@@ -10,6 +10,7 @@ export async function middleware(request: NextRequest) {
 
   // Public routes
   if (
+    pathname === "/" ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/auth") ||
     pathname.startsWith("/display") ||

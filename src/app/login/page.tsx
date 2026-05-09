@@ -23,7 +23,7 @@ export default function LoginPage() {
 function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
-  const nextPath = params.get("next") || "/";
+  const nextPath = params.get("next") || "/dashboard";
 
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
 
@@ -109,10 +109,10 @@ function LoginInner() {
 
           <div className="mt-4 space-y-2 text-xs text-zinc-500">
             <p>
-              <Link href="/display" className="text-indigo-400 hover:text-indigo-300 hover:underline">
-                Public showcase
+              <Link href="/" className="text-indigo-400 hover:text-indigo-300 hover:underline">
+                Home — public showcase
               </Link>{" "}
-              — open to everyone (logos & event info).
+              open to everyone.
             </p>
             <p>Admin: create users in Supabase Auth (Email/Password). This app trusts Supabase sessions.</p>
           </div>
