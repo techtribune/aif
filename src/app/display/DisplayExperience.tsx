@@ -75,6 +75,13 @@ export default function DisplayExperience() {
   const reducedMotion = useReducedMotion();
   const rafScroll = useRef(0);
 
+  const heroRef = useRef<HTMLElement | null>(null);
+  const heroSceneRef = useRef<HTMLDivElement | null>(null);
+  const heroBg1Ref = useRef<HTMLDivElement | null>(null);
+  const heroBg2Ref = useRef<HTMLDivElement | null>(null);
+  const heroMistRef = useRef<HTMLDivElement | null>(null);
+  const heroContentRef = useRef<HTMLDivElement | null>(null);
+
   const projectsRef = useRef<HTMLElement | null>(null);
   const [projectsRange, setProjectsRange] = useState<{ start: number; end: number }>({ start: 0, end: 1 });
 
@@ -123,6 +130,132 @@ export default function DisplayExperience() {
       ro.disconnect();
     };
   }, []);
+
+  useEffect(() => {
+    if (reducedMotion) return;
+    if (
+      !heroRef.current ||
+      !heroSceneRef.current ||
+      !heroBg1Ref.current ||
+      !heroBg2Ref.current ||
+      !heroMistRef.current ||
+      !heroContentRef.current
+    ) {
+      return;
+    }
+
+    let ctxCleanup: (() => void) | null = null;
+    let cancelled = false;
+
+    (async () => {
+      const [{ default: gsap }, { default: ScrollTrigger }] = await Promise.all([
+        import("gsap"),
+        import("gsap/ScrollTrigger"),
+      ]);
+      if (cancelled) return;
+
+      gsap.registerPlugin(ScrollTrigger);
+
+      const hero = heroRef.current!;
+      const scene = heroSceneRef.current!;
+      const bg1 = heroBg1Ref.current!;
+      const bg2 = heroBg2Ref.current!;
+      const mist = heroMistRef.current!;
+      const content = heroContentRef.current!;
+
+      const prefersReduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+      if (prefersReduce) return;
+
+      const set3d = (el: HTMLElement) => {
+        gsap.set(el, { transformStyle: "preserve-3d" });
+      };
+      set3d(scene);
+      set3d(bg1);
+      set3d(bg2);
+      set3d(mist);
+      set3d(content);
+
+      // Strong, “Webflow-like” pinned hero: bg moves slower than fg, with a subtle tilt & z-scale.
+      const tl = gsap.timeline({
+        defaults: { ease: "none" },
+        scrollTrigger: {
+          trigger: hero,
+          start: "top top",
+          end: "+=220%",
+          scrub: 1,
+          pin: true,
+          anticipatePin: 1,
+        },
+      });
+
+      tl.to(
+        bg1,
+        {
+          yPercent: -18,
+          z: -220,
+          scale: 1.12,
+        },
+        0,
+      )
+        .to(
+          bg2,
+          {
+            yPercent: -28,
+            z: -140,
+            scale: 1.1,
+          },
+          0,
+        )
+        .to(
+          mist,
+          {
+            yPercent: -22,
+            z: -60,
+            opacity: 0.95,
+          },
+          0,
+        )
+        .to(
+          content,
+          {
+            yPercent: -55,
+            z: 80,
+            scale: 1.02,
+          },
+          0,
+        )
+        .to(
+          scene,
+          {
+            rotateX: -7,
+            rotateY: 5,
+            z: 40,
+            scale: 1.03,
+            transformOrigin: "50% 50%",
+          },
+          0,
+        )
+        .to(
+          scene,
+          {
+            rotateX: 0,
+            rotateY: 0,
+            scale: 1,
+          },
+          0.86,
+        );
+
+      ctxCleanup = () => {
+        tl.scrollTrigger?.kill();
+        tl.kill();
+      };
+    })();
+
+    return () => {
+      cancelled = true;
+      ctxCleanup?.();
+    };
+  }, [reducedMotion]);
 
   const scrolled = scrollY > 56;
   const ySlow = parallax(scrollY, 0.22, reducedMotion);
@@ -247,66 +380,103 @@ export default function DisplayExperience() {
       </header>
 
       <main className="relative">
-        {/* Hero with parallax background photo */}
-        <section className="relative min-h-[78vh] overflow-hidden pb-14 pt-[7.75rem] sm:min-h-[85vh] sm:pt-[8.75rem]" aria-labelledby="hero-heading">
-          <div className="absolute inset-0 -z-10">
+        {/* Hero — GSAP/ScrollTrigger multi-layer 3D parallax (pinned) */}
+        <section
+          id="hero"
+          ref={(n) => {
+            heroRef.current = n;
+          }}
+          className="relative"
+          aria-labelledby="hero-heading"
+        >
+          <div className="relative h-screen overflow-hidden" style={{ perspective: 1400 }}>
             <div
-              className="absolute inset-[-18%_-8%_-8%_-8%]"
-              style={{ transform: `translate3d(0, ${heroParallax}px, 0) scale(1.08)` }}
+              ref={heroSceneRef}
+              className="absolute inset-0"
+              style={{
+                transformStyle: "preserve-3d",
+                willChange: reducedMotion ? undefined : "transform",
+              }}
             >
-              <Image
-                src={eventPhotoSrc(heroFile)}
-                alt=""
-                fill
-                className="object-cover object-[50%_40%]"
-                priority
-                sizes="100vw"
-              />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/55 to-black" />
-            </div>
-          </div>
-
-          <div className="mx-auto flex max-w-4xl flex-col items-center px-4 text-center">
-            <p
-              className={`${pixelAccent.className} mb-6 text-[9px] text-amber-300/95 sm:text-[10px]`}
-              aria-hidden="true"
-            >
-              Presented by Daily Tribune
-            </p>
-
-            <h1 id="hero-heading" className="sr-only">
-              Asian Innovation Forum public showcase
-            </h1>
-            <div className="relative w-full max-w-xl">
-              <div className="absolute -inset-3 rounded-3xl bg-gradient-to-b from-blue-500/20 via-transparent to-amber-500/15 blur-xl" aria-hidden />
-              <div
-                className="relative rounded-2xl border border-white/15 bg-black/55 p-5 shadow-[0_28px_80px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-8"
-                style={{
-                  transform: reducedMotion
-                    ? `translate3d(0, ${heroCardShift}px, 0)`
-                    : `perspective(1100px) translate3d(0, ${heroCardShift}px, 0) rotateX(${(-pointer.y * 4.0).toFixed(3)}deg) rotateY(${(pointer.x * 5.5).toFixed(3)}deg)`,
-                  transformStyle: "preserve-3d",
-                  willChange: reducedMotion ? undefined : "transform",
-                }}
-              >
-                <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
-                  <div
-                    className="absolute -inset-y-10 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/15 to-transparent"
-                    style={reducedMotion ? undefined : { animation: "aif-sheen 6.5s ease-in-out infinite" }}
-                  />
-                </div>
+              {/* Back layers (slow) */}
+              <div ref={heroBg1Ref} className="absolute inset-0" style={{ transformStyle: "preserve-3d" }}>
                 <Image
-                  src="/assets/aif.png"
-                  alt="Asian Innovation Forum logo"
-                  width={560}
-                  height={320}
-                  className="mx-auto h-auto w-full max-w-md object-contain sm:max-w-lg"
+                  src={eventPhotoSrc(heroFile)}
+                  alt=""
+                  fill
+                  className="object-cover object-[50%_40%]"
                   priority
+                  sizes="100vw"
                 />
-                <p className="mx-auto mt-6 max-w-md text-sm leading-relaxed text-zinc-300 sm:text-[15px]">
-                  Bringing together creators, founders, builders, and policy voices to spotlight how technology shapes
-                  how we live, learn, connect, and build for the region.
-                </p>
+                <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/45 to-black" />
+              </div>
+
+              <div ref={heroBg2Ref} className="absolute inset-0 opacity-60" style={{ transformStyle: "preserve-3d" }}>
+                <Image
+                  src={eventPhotoSrc(EVENT_PHOTO_FILES[4])}
+                  alt=""
+                  fill
+                  className="object-cover object-[50%_20%]"
+                  sizes="100vw"
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/90" />
+              </div>
+
+              {/* Atmospheric layer */}
+              <div
+                ref={heroMistRef}
+                className="absolute inset-0"
+                style={{ transformStyle: "preserve-3d" }}
+              >
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_30%_20%,rgba(37,99,235,0.20),transparent_55%),radial-gradient(ellipse_60%_45%_at_75%_65%,rgba(234,179,8,0.10),transparent_58%)]" />
+                <div className="absolute inset-0 bg-[linear-gradient(105deg,transparent_0%,rgba(255,255,255,0.04)_35%,transparent_70%)] opacity-40" />
+              </div>
+
+              {/* Foreground content (fast) */}
+              <div
+                ref={heroContentRef}
+                className="absolute inset-0 grid place-items-center px-4 text-center"
+                style={{ transformStyle: "preserve-3d" }}
+              >
+                <div className="relative w-full max-w-xl">
+                  <p className={`${pixelAccent.className} mb-6 text-[9px] text-amber-300/95 sm:text-[10px]`}>
+                    Presented by Daily Tribune
+                  </p>
+                  <h1 id="hero-heading" className="sr-only">
+                    Asian Innovation Forum public showcase
+                  </h1>
+
+                  <div className="absolute -inset-3 rounded-3xl bg-gradient-to-b from-blue-500/20 via-transparent to-amber-500/15 blur-xl" aria-hidden />
+                  <div
+                    className="relative rounded-2xl border border-white/15 bg-black/55 p-5 shadow-[0_28px_80px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-8"
+                    style={{
+                      transform: reducedMotion
+                        ? `translate3d(0, ${heroCardShift}px, 0)`
+                        : `perspective(1100px) translate3d(0, ${heroCardShift}px, 0) rotateX(${(-pointer.y * 4.0).toFixed(3)}deg) rotateY(${(pointer.x * 5.5).toFixed(3)}deg)`,
+                      transformStyle: "preserve-3d",
+                      willChange: reducedMotion ? undefined : "transform",
+                    }}
+                  >
+                    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
+                      <div
+                        className="absolute -inset-y-10 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/15 to-transparent"
+                        style={reducedMotion ? undefined : { animation: "aif-sheen 6.5s ease-in-out infinite" }}
+                      />
+                    </div>
+                    <Image
+                      src="/assets/aif.png"
+                      alt="Asian Innovation Forum logo"
+                      width={560}
+                      height={320}
+                      className="mx-auto h-auto w-full max-w-md object-contain sm:max-w-lg"
+                      priority
+                    />
+                    <p className="mx-auto mt-6 max-w-md text-sm leading-relaxed text-zinc-300 sm:text-[15px]">
+                      Bringing together creators, founders, builders, and policy voices to spotlight how technology shapes
+                      how we live, learn, connect, and build for the region.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
