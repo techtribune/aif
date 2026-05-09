@@ -3,7 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { DM_Sans, Press_Start_2P } from "next/font/google";
-import { useEffect, useRef, useState } from "react";
+import { animated, useReducedMotion as useSpringReducedMotion, useSpring, useTrail } from "@react-spring/web";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Autoplay, EffectCoverflow } from "swiper/modules";
+
+import "swiper/css";
+import "swiper/css/effect-coverflow";
 
 import { EVENT_PHOTO_FILES, eventPhotoSrc } from "@/app/display/eventPhotos";
 
@@ -28,10 +34,6 @@ function useReducedMotion(): boolean {
     return () => mq.removeEventListener("change", apply);
   }, []);
   return reduced;
-}
-
-function parallax(scrollY: number, factor: number, reducedMotion: boolean) {
-  return reducedMotion ? 0 : Math.round(scrollY * factor * 100) / 100;
 }
 
 function clamp(n: number, min: number, max: number) {
@@ -71,203 +73,14 @@ function usePointerTilt({ disabled }: { disabled: boolean }) {
 }
 
 export default function DisplayExperience() {
-  const [scrollY, setScrollY] = useState(0);
   const reducedMotion = useReducedMotion();
-  const rafScroll = useRef(0);
-
-  const heroRef = useRef<HTMLElement | null>(null);
-  const heroSceneRef = useRef<HTMLDivElement | null>(null);
-  const heroBg1Ref = useRef<HTMLDivElement | null>(null);
-  const heroBg2Ref = useRef<HTMLDivElement | null>(null);
-  const heroMistRef = useRef<HTMLDivElement | null>(null);
-  const heroContentRef = useRef<HTMLDivElement | null>(null);
-
-  const projectsRef = useRef<HTMLElement | null>(null);
-  const [projectsRange, setProjectsRange] = useState<{ start: number; end: number }>({ start: 0, end: 1 });
-
-  useEffect(() => {
-    let latest = window.scrollY || 0;
-    const flush = () => {
-      rafScroll.current = 0;
-      setScrollY(latest);
-    };
-    const onScroll = () => {
-      latest = window.scrollY || 0;
-      if (rafScroll.current) return;
-      rafScroll.current = window.requestAnimationFrame(flush);
-    };
-    setScrollY(latest);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (rafScroll.current) cancelAnimationFrame(rafScroll.current);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!projectsRef.current) return;
-
-    const measure = () => {
-      const el = projectsRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const top = rect.top + (window.scrollY || 0);
-      const height = rect.height;
-      // Leave a little buffer so the sticky content fully exits.
-      const start = top;
-      const end = top + Math.max(1, height - window.innerHeight * 0.35);
-      setProjectsRange({ start, end });
-    };
-
-    measure();
-    window.addEventListener("resize", measure);
-
-    // ResizeObserver helps when fonts/images cause layout shifts.
-    const ro = new ResizeObserver(measure);
-    ro.observe(projectsRef.current);
-    return () => {
-      window.removeEventListener("resize", measure);
-      ro.disconnect();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (reducedMotion) return;
-    if (
-      !heroRef.current ||
-      !heroSceneRef.current ||
-      !heroBg1Ref.current ||
-      !heroBg2Ref.current ||
-      !heroMistRef.current ||
-      !heroContentRef.current
-    ) {
-      return;
-    }
-
-    let ctxCleanup: (() => void) | null = null;
-    let cancelled = false;
-
-    (async () => {
-      const [{ default: gsap }, { default: ScrollTrigger }] = await Promise.all([
-        import("gsap"),
-        import("gsap/ScrollTrigger"),
-      ]);
-      if (cancelled) return;
-
-      gsap.registerPlugin(ScrollTrigger);
-
-      const hero = heroRef.current!;
-      const scene = heroSceneRef.current!;
-      const bg1 = heroBg1Ref.current!;
-      const bg2 = heroBg2Ref.current!;
-      const mist = heroMistRef.current!;
-      const content = heroContentRef.current!;
-
-      const prefersReduce = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
-      if (prefersReduce) return;
-
-      const set3d = (el: HTMLElement) => {
-        gsap.set(el, { transformStyle: "preserve-3d" });
-      };
-      set3d(scene);
-      set3d(bg1);
-      set3d(bg2);
-      set3d(mist);
-      set3d(content);
-
-      // Strong, “Webflow-like” pinned hero: bg moves slower than fg, with a subtle tilt & z-scale.
-      const tl = gsap.timeline({
-        defaults: { ease: "none" },
-        scrollTrigger: {
-          trigger: hero,
-          start: "top top",
-          end: "+=220%",
-          scrub: 1,
-          pin: true,
-          anticipatePin: 1,
-        },
-      });
-
-      tl.to(
-        bg1,
-        {
-          yPercent: -18,
-          z: -220,
-          scale: 1.12,
-        },
-        0,
-      )
-        .to(
-          bg2,
-          {
-            yPercent: -28,
-            z: -140,
-            scale: 1.1,
-          },
-          0,
-        )
-        .to(
-          mist,
-          {
-            yPercent: -22,
-            z: -60,
-            opacity: 0.95,
-          },
-          0,
-        )
-        .to(
-          content,
-          {
-            yPercent: -55,
-            z: 80,
-            scale: 1.02,
-          },
-          0,
-        )
-        .to(
-          scene,
-          {
-            rotateX: -7,
-            rotateY: 5,
-            z: 40,
-            scale: 1.03,
-            transformOrigin: "50% 50%",
-          },
-          0,
-        )
-        .to(
-          scene,
-          {
-            rotateX: 0,
-            rotateY: 0,
-            scale: 1,
-          },
-          0.86,
-        );
-
-      ctxCleanup = () => {
-        tl.scrollTrigger?.kill();
-        tl.kill();
-      };
-    })();
-
-    return () => {
-      cancelled = true;
-      ctxCleanup?.();
-    };
-  }, [reducedMotion]);
-
-  const scrolled = scrollY > 56;
-  const ySlow = parallax(scrollY, 0.22, reducedMotion);
-  const yMid = parallax(scrollY, 0.12, reducedMotion);
-  const yFloat = parallax(scrollY, -0.06, reducedMotion);
-  const heroParallax = parallax(scrollY, 0.28, reducedMotion);
-  const heroCardShift = parallax(scrollY, -0.04, reducedMotion);
+  const springReducedMotion = useSpringReducedMotion();
+  const scrolled = true;
 
   const pointer = usePointerTilt({ disabled: reducedMotion });
 
   const heroFile = EVENT_PHOTO_FILES[0];
-  const galleryFiles = EVENT_PHOTO_FILES.slice(1);
+  const galleryFiles = useMemo(() => EVENT_PHOTO_FILES.slice(1), []);
 
   const projects = [
     { title: "Project 01", year: "2026", file: EVENT_PHOTO_FILES[4] },
@@ -278,28 +91,17 @@ export default function DisplayExperience() {
     { title: "Project 06", year: "2026", file: EVENT_PHOTO_FILES[25] },
   ] as const;
 
-  const projectsProgress = clamp((scrollY - projectsRange.start) / (projectsRange.end - projectsRange.start), 0, 1);
-
   return (
     <div id="top" className={`${sans.className} relative min-h-screen bg-black text-zinc-100 antialiased`}>
-      {/* Parallax / ambient layers */}
+      {/* Ambient layers */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div
-          className="absolute -left-[15%] top-[-10%] h-[120%] w-[130%]"
-          style={{ transform: `translate3d(0, ${ySlow}px, 0)` }}
-        >
+        <div className="absolute -left-[15%] top-[-10%] h-[120%] w-[130%]">
           <div className="h-full w-full bg-[radial-gradient(ellipse_70%_50%_at_30%_20%,rgba(37,99,235,0.22),transparent_55%),radial-gradient(ellipse_50%_40%_at_80%_60%,rgba(234,179,8,0.08),transparent_50%)]" />
         </div>
-        <div
-          className="absolute inset-0 opacity-40"
-          style={{ transform: `translate3d(0, ${yMid}px, 0)` }}
-        >
+        <div className="absolute inset-0 opacity-40">
           <div className="h-full w-full bg-[linear-gradient(105deg,transparent_0%,rgba(255,255,255,0.04)_35%,transparent_70%)] bg-[length:280%_100%]" />
         </div>
-        <div
-          className="absolute left-1/2 top-[18%] h-64 w-64 -translate-x-1/2 rounded-full bg-amber-400/15 blur-[100px]"
-          style={{ transform: `translate(-50%, ${yFloat}px)` }}
-        />
+        <div className="absolute left-1/2 top-[18%] h-64 w-64 -translate-x-1/2 rounded-full bg-amber-400/15 blur-[100px]" />
       </div>
 
       {/* Header */}
@@ -339,7 +141,14 @@ export default function DisplayExperience() {
           </Link>
 
           <nav
-            className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[11px] font-medium uppercase tracking-[0.2em] text-zinc-400 sm:gap-x-10 sm:text-xs"
+            className={[
+              // Mobile: keep one line and allow horizontal scroll instead of wrapping/cramping.
+              "flex items-center justify-start gap-x-4",
+              "max-w-[52vw] overflow-x-auto whitespace-nowrap",
+              "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+              "text-[10px] font-medium uppercase tracking-[0.22em] text-zinc-400",
+              "sm:max-w-none sm:justify-center sm:gap-x-10 sm:text-xs",
+            ].join(" ")}
             aria-label="Page sections"
           >
             <a href="#about" className="hover:text-amber-200/95">
@@ -380,366 +189,248 @@ export default function DisplayExperience() {
       </header>
 
       <main className="relative">
-        {/* Hero — GSAP/ScrollTrigger multi-layer 3D parallax (pinned) */}
-        <section
-          id="hero"
-          ref={(n) => {
-            heroRef.current = n;
-          }}
-          className="relative"
-          aria-labelledby="hero-heading"
-        >
-          <div className="relative h-screen overflow-hidden" style={{ perspective: 1400 }}>
-            <div
-              ref={heroSceneRef}
-              className="absolute inset-0"
-              style={{
-                transformStyle: "preserve-3d",
-                willChange: reducedMotion ? undefined : "transform",
-              }}
-            >
-              {/* Back layers (slow) */}
-              <div ref={heroBg1Ref} className="absolute inset-0" style={{ transformStyle: "preserve-3d" }}>
-                <Image
-                  src={eventPhotoSrc(heroFile)}
-                  alt=""
-                  fill
-                  className="object-cover object-[50%_40%]"
-                  priority
-                  sizes="100vw"
-                />
-                <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/45 to-black" />
-              </div>
-
-              <div ref={heroBg2Ref} className="absolute inset-0 opacity-60" style={{ transformStyle: "preserve-3d" }}>
-                <Image
-                  src={eventPhotoSrc(EVENT_PHOTO_FILES[4])}
-                  alt=""
-                  fill
-                  className="object-cover object-[50%_20%]"
-                  sizes="100vw"
-                />
-                <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/90" />
-              </div>
-
-              {/* Atmospheric layer */}
-              <div
-                ref={heroMistRef}
-                className="absolute inset-0"
-                style={{ transformStyle: "preserve-3d" }}
-              >
-                <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_30%_20%,rgba(37,99,235,0.20),transparent_55%),radial-gradient(ellipse_60%_45%_at_75%_65%,rgba(234,179,8,0.10),transparent_58%)]" />
-                <div className="absolute inset-0 bg-[linear-gradient(105deg,transparent_0%,rgba(255,255,255,0.04)_35%,transparent_70%)] opacity-40" />
-              </div>
-
-              {/* Foreground content (fast) */}
-              <div
-                ref={heroContentRef}
-                className="absolute inset-0 grid place-items-center px-4 text-center"
-                style={{ transformStyle: "preserve-3d" }}
-              >
-                <div className="relative w-full max-w-xl">
-                  <p className={`${pixelAccent.className} mb-6 text-[9px] text-amber-300/95 sm:text-[10px]`}>
-                    Presented by Daily Tribune
-                  </p>
-                  <h1 id="hero-heading" className="sr-only">
-                    Asian Innovation Forum public showcase
-                  </h1>
-
-                  <div className="absolute -inset-3 rounded-3xl bg-gradient-to-b from-blue-500/20 via-transparent to-amber-500/15 blur-xl" aria-hidden />
-                  <div
-                    className="relative rounded-2xl border border-white/15 bg-black/55 p-5 shadow-[0_28px_80px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-8"
-                    style={{
-                      transform: reducedMotion
-                        ? `translate3d(0, ${heroCardShift}px, 0)`
-                        : `perspective(1100px) translate3d(0, ${heroCardShift}px, 0) rotateX(${(-pointer.y * 4.0).toFixed(3)}deg) rotateY(${(pointer.x * 5.5).toFixed(3)}deg)`,
-                      transformStyle: "preserve-3d",
-                      willChange: reducedMotion ? undefined : "transform",
-                    }}
-                  >
-                    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
-                      <div
-                        className="absolute -inset-y-10 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/15 to-transparent"
-                        style={reducedMotion ? undefined : { animation: "aif-sheen 6.5s ease-in-out infinite" }}
-                      />
-                    </div>
-                    <Image
-                      src="/assets/aif.png"
-                      alt="Asian Innovation Forum logo"
-                      width={560}
-                      height={320}
-                      className="mx-auto h-auto w-full max-w-md object-contain sm:max-w-lg"
-                      priority
-                    />
-                    <p className="mx-auto mt-6 max-w-md text-sm leading-relaxed text-zinc-300 sm:text-[15px]">
-                      Bringing together creators, founders, builders, and policy voices to spotlight how technology shapes
-                      how we live, learn, connect, and build for the region.
-                    </p>
-                  </div>
-                </div>
-              </div>
+        {/* Hero — layered (no nested scroll container) */}
+        <section id="hero" className="relative" aria-labelledby="hero-heading">
+          <div className="relative h-screen overflow-hidden">
+            <div className="absolute inset-0">
+              <Image
+                src={eventPhotoSrc(heroFile)}
+                alt=""
+                fill
+                className="object-cover object-[50%_40%]"
+                priority
+                sizes="100vw"
+              />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/45 to-black" />
             </div>
+
+            <div className="pointer-events-none absolute inset-0">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_30%_20%,rgba(37,99,235,0.20),transparent_55%),radial-gradient(ellipse_60%_45%_at_75%_65%,rgba(234,179,8,0.10),transparent_58%)]" />
+              <div className="absolute inset-0 bg-[linear-gradient(105deg,transparent_0%,rgba(255,255,255,0.04)_35%,transparent_70%)] opacity-40" />
+            </div>
+
+            <HeroContent
+              reducedMotion={Boolean(reducedMotion || springReducedMotion)}
+              pixelClassName={pixelAccent.className}
+              pointer={pointer}
+            />
           </div>
         </section>
 
-        <div className="mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6">
-          {/* About */}
-          <section id="about" className="scroll-mt-28 border-y border-white/10 py-16 sm:scroll-mt-32 sm:py-20">
-            <div className="grid gap-10 md:grid-cols-[1fr,1.1fr] md:gap-14 md:items-start">
-              <div>
-                <h2 className={`${pixelAccent.className} text-[10px] uppercase tracking-[0.25em] text-amber-300/95`}>
-                  Why we gather
+        <div className="mx-auto max-w-6xl px-4 pb-20 pt-20 sm:px-6 sm:pt-10">
+          {/* About (rehash) */}
+          <section id="about" className="scroll-mt-24 py-16 sm:scroll-mt-32 sm:py-20">
+            <div className="grid gap-10 md:grid-cols-[1.1fr,0.9fr] md:items-start md:gap-14">
+              <div className="space-y-4">
+                <h2 className={`${pixelAccent.className} text-[10px] uppercase tracking-[0.35em] text-amber-300/95`}>
+                  About
                 </h2>
-                <p className="mt-3 text-xl font-semibold tracking-tight text-white sm:text-2xl">
-                  Dialogue, demos, and real stories from innovators across Asia-Pacific.
+                <p className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                  A platform for stories, demos, and collaboration—built around what innovation looks like on the ground.
                 </p>
-              </div>
-              <div className="space-y-4 text-sm leading-relaxed text-zinc-400 sm:text-base">
-                <p>
-                  The Asian Innovation Forum is a platform for exchanging ideas across industries—from smart cities and
-                  digital media to grassroots entrepreneurship and frontier research.
+                <p className="text-sm leading-relaxed text-zinc-400 sm:text-base">
+                  Each AIF gathering connects founders, builders, public leaders, and media—so ideas move from talk to
+                  prototypes to partnerships. Registration links are shared per event by organizers.
                 </p>
-                <p>
-                  Sessions are designed to bridge audiences: emerging talent meets experienced operators; technologists
-                  meet storytellers and civic leaders—so innovations are understood not just as products but as shifts
-                  in culture and capability.
-                </p>
-                <p>
-                  <span className="text-zinc-200">Attendance &amp; registration:</span> when an event opens, organizers
-                  share a dedicated registration link for that date and venue.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Highlight strip — second photo with parallax feel */}
-          <section id="highlights" className="scroll-mt-28 py-16 sm:scroll-mt-32 sm:py-20">
-            <h2 className={`${pixelAccent.className} text-center text-[10px] uppercase tracking-[0.35em] text-amber-300/95`}>
-              Highlights
-            </h2>
-            <p className="mx-auto mt-3 max-w-2xl text-center text-lg font-semibold text-zinc-100 sm:text-xl">
-              Keynotes, panels, exhibition floors, and meetups—capturing momentum on the ground.
-            </p>
-            <div
-              className="relative mt-10 overflow-hidden rounded-2xl ring-1 ring-white/15"
-              style={{
-                transform:
-                  reducedMotion
-                    ? undefined
-                    : `perspective(1100px) rotateX(${(-pointer.y * 2.0).toFixed(3)}deg) rotateY(${(pointer.x * 2.6).toFixed(3)}deg)`,
-                transformStyle: "preserve-3d",
-              }}
-            >
-              <div className="relative aspect-[21/10] max-h-[min(56vh,780px)] w-full sm:aspect-[21/9]">
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    transform: `translate3d(0, ${parallax(scrollY, 0.08, reducedMotion)}px, 0) scale(1.02)`,
-                  }}
-                >
-                  <Image
-                    src={eventPhotoSrc(EVENT_PHOTO_FILES[4])}
-                    alt="Asian Innovation Forum — panel and audience highlights"
-                    fill
-                    className="object-cover object-[50%_25%]"
-                    sizes="(max-width: 768px) 100vw, 1152px"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/55" />
-                </div>
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 p-6 sm:p-8">
-                  <div className="max-w-xl rounded-xl border border-white/10 bg-black/45 px-4 py-3 text-xs text-zinc-200 backdrop-blur sm:text-sm">
-                    Moments from Forum programming: conversations designed to unlock collaboration between media,
-                    innovators, enterprises, and the public sphere.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Projects — pinned horizontal, heavy parallax (inspired by reference site) */}
-          <section
-            id="projects"
-            ref={(node) => {
-              projectsRef.current = node;
-            }}
-            className="scroll-mt-28 py-20 sm:scroll-mt-32 sm:py-28"
-            aria-label="Projects"
-          >
-            <div className="mx-auto max-w-6xl">
-              <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h2 className={`${pixelAccent.className} text-[10px] uppercase tracking-[0.35em] text-amber-300/95`}>
-                    Projects
-                  </h2>
-                  <p className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight text-white sm:text-3xl">
-                    Our work in full bloom — scroll to explore.
-                  </p>
-                </div>
-                <div className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">
-                  {reducedMotion ? "Reduced motion" : "Scroll = drag"}
-                </div>
               </div>
 
-              {/* Tall wrapper to create the “pinned” feeling */}
-              <div className="relative h-[240vh]">
-                <div className="sticky top-[5.25rem] sm:top-[6.25rem]">
+              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-1">
+                {[
+                  { k: "Panels", v: "Actionable discussions" },
+                  { k: "Exhibits", v: "Showcase & demos" },
+                  { k: "Networking", v: "Meet people fast" },
+                  { k: "Media", v: "Stories that travel" },
+                ].map((x) => (
                   <div
-                    className="overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/30 p-6 backdrop-blur-md sm:p-8"
-                    style={{
-                      transform: reducedMotion
-                        ? undefined
-                        : `perspective(1400px) rotateX(${(-pointer.y * 1.6).toFixed(3)}deg) rotateY(${(pointer.x * 2.0).toFixed(3)}deg)`,
-                      transformStyle: "preserve-3d",
-                    }}
+                    key={x.k}
+                    className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm"
                   >
-                    <div className="flex items-end justify-between gap-6">
-                      <div className="min-w-0">
-                        <div className={`${pixelAccent.className} text-[10px] tracking-[0.3em] text-zinc-400`}>
-                          Portfolio
-                        </div>
-                        <div className="mt-2 text-sm text-zinc-300">
-                          {Math.round(projectsProgress * 100)}% explored
-                        </div>
-                      </div>
-                      <div className="hidden text-right text-xs text-zinc-400 sm:block">
-                        Scroll down
-                        <br />
-                        to move sideways
-                      </div>
-                    </div>
-
-                    <div className="mt-8 overflow-hidden">
-                      <div
-                        className="flex gap-6 will-change-transform"
-                        style={{
-                          transform: reducedMotion
-                            ? undefined
-                            : `translate3d(${-(projects.length - 1) * 18 * projectsProgress}rem, 0, 0)`,
-                          transition: reducedMotion ? undefined : "transform 40ms linear",
-                        }}
-                      >
-                        {projects.map((p, idx) => {
-                          const local = clamp(projectsProgress * (projects.length - 1) - idx, -1, 1);
-                          const z = reducedMotion ? 0 : (1 - Math.abs(local)) * 40;
-                          const rot = reducedMotion ? 0 : local * -10;
-                          const lift = reducedMotion ? 0 : (1 - Math.abs(local)) * -10;
-                          return (
-                            <article
-                              key={p.title}
-                              className="relative w-[18rem] shrink-0 sm:w-[22rem] lg:w-[26rem]"
-                              style={{
-                                transform: reducedMotion
-                                  ? undefined
-                                  : `translate3d(0, ${lift}px, ${z}px) rotateY(${rot}deg)`,
-                                transformStyle: "preserve-3d",
-                              }}
-                            >
-                              <div className="relative overflow-hidden rounded-2xl ring-1 ring-white/12">
-                                <div className="relative aspect-[4/5]">
-                                  <Image
-                                    src={eventPhotoSrc(p.file)}
-                                    alt={`AIF project image ${idx + 1}`}
-                                    fill
-                                    className="object-cover object-[50%_35%]"
-                                    sizes="(max-width: 640px) 85vw, 420px"
-                                  />
-                                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
-                                </div>
-                                <div className="absolute inset-x-0 bottom-0 p-5">
-                                  <div className="flex items-baseline justify-between gap-3">
-                                    <div className="min-w-0">
-                                      <div className="truncate text-lg font-semibold text-white">{p.title}</div>
-                                      <div className="mt-1 text-xs uppercase tracking-[0.25em] text-zinc-300/90">
-                                        Asian Innovation Forum
-                                      </div>
-                                    </div>
-                                    <div className={`${pixelAccent.className} text-[10px] text-amber-200/90`}>
-                                      {p.year}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </article>
-                          );
-                        })}
-                      </div>
-                    </div>
+                    <div className={`${pixelAccent.className} text-[10px] tracking-[0.28em] text-zinc-400`}>{x.k}</div>
+                    <div className="mt-2 text-sm font-semibold text-zinc-100">{x.v}</div>
                   </div>
-                </div>
+                ))}
               </div>
             </div>
           </section>
 
-          {/* Moments gallery */}
-          <section id="moments" className="scroll-mt-28 py-14 sm:scroll-mt-32 sm:py-16">
+          {/* Highlights (rehash) */}
+          <section id="highlights" className="scroll-mt-24 py-16 sm:scroll-mt-32 sm:py-20">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h2 className={`${pixelAccent.className} text-[10px] uppercase tracking-[0.3em] text-amber-300/95`}>
-                  Moments &amp; gallery
+                <h2 className={`${pixelAccent.className} text-[10px] uppercase tracking-[0.35em] text-amber-300/95`}>
+                  Highlights
                 </h2>
-                <p className="mt-2 max-w-xl text-sm text-zinc-400 sm:text-base">
-                  A glimpse of gatherings, backstage energy, exhibitors, speakers, and the people who shape each edition.
-                  Scroll for more—each tile uses event photography from Daily Tribune&apos;s Forum coverage archives.
+                <p className="mt-3 max-w-2xl text-xl font-semibold tracking-tight text-white sm:text-2xl">
+                  Keynotes, panels, exhibition floors, and meetups—capturing momentum.
                 </p>
               </div>
-              <span className="text-[10px] uppercase tracking-[0.2em] text-zinc-600">
-                {galleryFiles.length} photos
-              </span>
+              <p className="max-w-md text-sm text-zinc-400">
+                A curated snapshot of the experience—designed to read cleanly on any device.
+              </p>
             </div>
 
-            <div className="mt-10 columns-1 gap-4 sm:columns-2 lg:columns-3">
-              {galleryFiles.map((file, idx) => {
-                const lift = reducedMotion ? 0 : ((idx % 3) + 1) * -2;
-                return (
-                  <figure
-                    key={file}
-                    className="mb-4 break-inside-avoid overflow-hidden rounded-xl ring-1 ring-white/12 last:mb-0"
-                    style={{
-                      transform:
-                        reducedMotion ? undefined : `translate3d(0, ${parallax(scrollY, lift * 0.012, reducedMotion)}px, 0)`,
-                    }}
-                  >
-                    <div className="relative">
-                      <div className="relative aspect-[4/5] sm:aspect-[3/4]">
-                        <Image
-                          src={eventPhotoSrc(file)}
-                          alt={`Asian Innovation Forum event photo (${idx + 2})`}
-                          fill
-                          className="object-cover object-[50%_40%]"
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 45vw, 30vw"
-                        />
-                      </div>
+            <div className="mt-10 grid gap-4 md:grid-cols-12">
+              <div className="md:col-span-7">
+                <div className="relative overflow-hidden rounded-2xl ring-1 ring-white/12">
+                  <div className="relative aspect-[16/10]">
+                    <Image
+                      src={eventPhotoSrc(EVENT_PHOTO_FILES[4])}
+                      alt="Asian Innovation Forum highlights"
+                      fill
+                      className="object-cover object-[50%_25%]"
+                      sizes="(max-width: 768px) 100vw, 720px"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                  </div>
+                  <div className="absolute inset-x-0 bottom-0 p-5">
+                    <div className="max-w-lg rounded-xl border border-white/10 bg-black/45 px-4 py-3 text-sm text-zinc-200 backdrop-blur">
+                      Conversations designed to unlock collaboration between media, innovators, enterprises, and the public sphere.
                     </div>
-                  </figure>
-                );
-              })}
+                  </div>
+                </div>
+              </div>
+              <div className="grid gap-4 md:col-span-5">
+                {[
+                  { t: "Curated speakers", d: "Operators, founders, and public voices." },
+                  { t: "Hands-on demos", d: "See product and prototypes up close." },
+                  { t: "Fast networking", d: "Structured moments to connect." },
+                ].map((c) => (
+                  <div key={c.t} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <div className="text-sm font-semibold text-white">{c.t}</div>
+                    <div className="mt-2 text-sm text-zinc-400">{c.d}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </section>
 
-          {/* Partners footer block */}
-          <section id="partners" className="scroll-mt-28 border-t border-white/10 py-14 sm:scroll-mt-32 sm:py-16">
-            <div className="flex flex-col items-center gap-8 rounded-2xl border border-white/10 bg-zinc-950/55 px-6 py-12 text-center backdrop-blur-sm sm:flex-row sm:justify-between sm:gap-12 sm:text-left">
-              <div className="max-w-md space-y-2">
-                <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Presenting partner</h2>
-                <p className="text-sm leading-relaxed text-zinc-400">
-                  Produced with the journalism and civic mission of Daily Tribune—independent reporting without fear,
-                  without favor—supporting public understanding of innovation and accountability in the digital age.
+          {/* Projects (rehash) */}
+          <section id="projects" className="scroll-mt-24 py-16 sm:scroll-mt-32 sm:py-20">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className={`${pixelAccent.className} text-[10px] uppercase tracking-[0.35em] text-amber-300/95`}>
+                  Projects
+                </h2>
+                <p className="mt-3 max-w-2xl text-xl font-semibold tracking-tight text-white sm:text-2xl">
+                  A clean, scrollable showcase.
                 </p>
               </div>
-              <Link
-                href="https://tribune.net.ph/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="relative block h-12 w-[13.5rem] shrink-0 sm:h-14 sm:w-[16rem]"
+              <div className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Swipe / scroll</div>
+            </div>
+
+            <div className="mt-8 rounded-3xl border border-white/10 bg-zinc-950/30 py-6 backdrop-blur-sm sm:mt-10">
+              <Swiper
+                modules={[EffectCoverflow, Autoplay]}
+                effect="coverflow"
+                centeredSlides
+                slidesPerView="auto"
+                grabCursor
+                loop
+                autoplay={
+                  reducedMotion
+                    ? false
+                    : {
+                        delay: 2200,
+                        disableOnInteraction: false,
+                        pauseOnMouseEnter: true,
+                      }
+                }
+                coverflowEffect={{
+                  rotate: 14,
+                  stretch: 0,
+                  depth: 170,
+                  modifier: 1.1,
+                  slideShadows: false,
+                }}
+                breakpoints={{
+                  640: {
+                    coverflowEffect: { rotate: 16, depth: 200, modifier: 1.1, stretch: 0, slideShadows: false },
+                  },
+                  1024: {
+                    coverflowEffect: { rotate: 18, depth: 240, modifier: 1.15, stretch: 0, slideShadows: false },
+                  },
+                }}
+                className="!px-3 sm:!px-6"
               >
-                <Image
-                  src="/assets/dt.png"
-                  alt="Daily Tribune logo"
-                  fill
-                  className="object-contain"
-                  sizes="256px"
-                />
-              </Link>
+                {projects.map((p) => (
+                  <SwiperSlide
+                    key={p.title}
+                    className="!w-[14.25rem] xs:!w-[15.5rem] sm:!w-[20rem] lg:!w-[22rem]"
+                  >
+                    <div className="overflow-hidden rounded-2xl ring-1 ring-white/12">
+                      <div className="relative aspect-[4/5]">
+                        <Image
+                          src={eventPhotoSrc(p.file)}
+                          alt={p.title}
+                          fill
+                          className="object-cover object-[50%_35%]"
+                          sizes="(max-width: 640px) 75vw, 360px"
+                        />
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+                      </div>
+                      <div className="p-4">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <div className="text-sm font-semibold text-white">{p.title}</div>
+                          <div className={`${pixelAccent.className} text-[10px] text-amber-200/90`}>{p.year}</div>
+                        </div>
+                        <div className="mt-1 text-xs uppercase tracking-[0.25em] text-zinc-400">Asian Innovation Forum</div>
+                      </div>
+                    </div>
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+            </div>
+          </section>
+
+          {/* Gallery (rehash) */}
+          <section id="moments" className="scroll-mt-24 py-16 sm:scroll-mt-32 sm:py-20">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className={`${pixelAccent.className} text-[10px] uppercase tracking-[0.35em] text-amber-300/95`}>
+                  Gallery
+                </h2>
+                <p className="mt-3 max-w-2xl text-xl font-semibold tracking-tight text-white sm:text-2xl">
+                  Moments from the floor.
+                </p>
+              </div>
+              <div className="text-sm text-zinc-400">{galleryFiles.length} photos</div>
+            </div>
+
+            <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+              {galleryFiles.slice(0, 12).map((file, idx) => (
+                <figure key={file} className="overflow-hidden rounded-xl ring-1 ring-white/12">
+                  <div className="relative aspect-[4/5]">
+                    <Image
+                      src={eventPhotoSrc(file)}
+                      alt={`AIF photo ${idx + 1}`}
+                      fill
+                      className="object-cover object-[50%_40%] transition-transform duration-500 hover:scale-[1.04]"
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 240px"
+                    />
+                  </div>
+                </figure>
+              ))}
+            </div>
+          </section>
+
+          {/* Partners (rehash) */}
+          <section id="partners" className="scroll-mt-24 py-16 sm:scroll-mt-32 sm:py-20">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm sm:p-10">
+              <div className="grid gap-8 md:grid-cols-[1.2fr,0.8fr] md:items-center">
+                <div>
+                  <h2 className={`${pixelAccent.className} text-[10px] uppercase tracking-[0.35em] text-amber-300/95`}>
+                    Presented by
+                  </h2>
+                  <p className="mt-3 text-xl font-semibold tracking-tight text-white sm:text-2xl">Daily Tribune</p>
+                  <p className="mt-3 text-sm leading-relaxed text-zinc-400 sm:text-base">
+                    Produced with the journalism mission of Daily Tribune—supporting public understanding of innovation and
+                    accountability in the digital age.
+                  </p>
+                </div>
+                <div className="relative mx-auto h-12 w-[15rem] sm:h-14 sm:w-[17rem]">
+                  <Image src="/assets/dt.png" alt="Daily Tribune logo" fill className="object-contain" sizes="272px" />
+                </div>
+              </div>
             </div>
           </section>
         </div>
@@ -758,5 +449,141 @@ export default function DisplayExperience() {
         </footer>
       </main>
     </div>
+  );
+}
+
+function HeroContent({
+  reducedMotion,
+  pixelClassName,
+  pointer,
+}: {
+  reducedMotion: boolean;
+  pixelClassName: string;
+  pointer: { x: number; y: number };
+}) {
+  const titleLines = useMemo(() => ["Asian", "Innovation", "Forum"], []);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const intro = useSpring({
+    from: { opacity: 0, y: 18, scale: 0.98 },
+    to: mounted ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 18, scale: 0.98 },
+    config: { tension: 220, friction: 26, mass: 0.9 },
+    immediate: reducedMotion,
+  });
+
+  const titleTrail = useTrail(titleLines.length, {
+    from: { opacity: 0, y: 22 },
+    to: mounted ? { opacity: 1, y: 0 } : { opacity: 0, y: 22 },
+    config: { tension: 250, friction: 22, mass: 0.9 },
+    immediate: reducedMotion,
+    delay: reducedMotion ? 0 : 90,
+  });
+
+  const tilt = reducedMotion
+    ? undefined
+    : `perspective(1200px) rotateX(${(-pointer.y * 3.8).toFixed(3)}deg) rotateY(${(pointer.x * 5.0).toFixed(3)}deg)`;
+
+  return (
+      <div className="absolute inset-0 grid place-items-center px-4 pt-20 sm:pt-24">
+        <animated.div
+          className="relative w-full max-w-5xl"
+          style={{
+            opacity: intro.opacity,
+            transform: intro.y.to((y) => `translate3d(0, ${y}px, 0)`),
+          }}
+        >
+          <div className="grid gap-7 md:grid-cols-[1.05fr,0.95fr] md:items-center md:gap-10">
+            <div className="text-center md:text-left">
+              <p className={`${pixelClassName} text-[10px] uppercase tracking-[0.45em] text-amber-300/95`}>
+                Presented by Daily Tribune
+              </p>
+              <h1 className="sr-only">Asian Innovation Forum</h1>
+
+              <div className="mt-5 space-y-1 text-4xl font-semibold leading-[0.95] tracking-tight text-white xs:text-5xl sm:text-6xl md:text-7xl">
+                {titleTrail.map((st, idx) => (
+                  <animated.div
+                    key={titleLines[idx]}
+                    style={{
+                      opacity: st.opacity,
+                      transform: st.y.to((y) => `translate3d(0, ${y}px, 0)`),
+                    }}
+                    className="text-balance"
+                  >
+                    {titleLines[idx]}
+                  </animated.div>
+                ))}
+              </div>
+
+              <p className="mx-auto mt-6 max-w-xl text-sm leading-relaxed text-zinc-300 sm:text-base md:mx-0">
+                A showcase of leaders, builders, and ideas shaping the next wave of technology and public innovation across
+                Asia-Pacific.
+              </p>
+
+              <div className="mt-7 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center md:justify-start">
+                <a
+                  href="#highlights"
+                  className="inline-flex w-full items-center justify-center rounded-full border border-white/15 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur hover:bg-white/15 sm:w-auto"
+                >
+                  Explore highlights
+                </a>
+                <a
+                  href="#projects"
+                  className="inline-flex w-full items-center justify-center rounded-full border border-white/10 bg-black/30 px-5 py-2.5 text-sm font-semibold text-zinc-100 hover:bg-white/5 sm:w-auto"
+                >
+                  View projects
+                </a>
+              </div>
+            </div>
+
+            <div className="mx-auto w-full max-w-xl md:max-w-none">
+              <div
+                className="relative overflow-hidden rounded-3xl border border-white/15 bg-black/45 p-4 shadow-[0_40px_120px_rgba(0,0,0,0.65)] backdrop-blur-md sm:p-8"
+                style={{
+                  transform: tilt,
+                  transformStyle: "preserve-3d",
+                  willChange: reducedMotion ? undefined : "transform",
+                }}
+              >
+                <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl">
+                  <div
+                    className="absolute -inset-y-10 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/15 to-transparent"
+                    style={reducedMotion ? undefined : { animation: "aif-sheen 6.5s ease-in-out infinite" }}
+                  />
+                </div>
+
+                <Image
+                  src="/assets/aif.png"
+                  alt="Asian Innovation Forum logo"
+                  width={560}
+                  height={320}
+                  className="mx-auto h-auto w-full max-w-md object-contain sm:max-w-lg"
+                  priority
+                />
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                  {[
+                    { k: "Panels", v: "Big ideas, clear actions" },
+                    { k: "Showcase", v: "Demos and exhibits" },
+                    { k: "Network", v: "Meet people fast" },
+                  ].map((x) => (
+                    <div key={x.k} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                      <div className={`${pixelClassName} text-[10px] tracking-[0.28em] text-zinc-400`}>{x.k}</div>
+                      <div className="mt-1 text-sm font-semibold text-zinc-100">{x.v}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="pointer-events-none mt-10 flex items-center justify-center gap-2 text-[10px] uppercase tracking-[0.35em] text-zinc-500 md:justify-start">
+            <span className="h-px w-10 bg-white/10" />
+            Scroll
+            <span className="h-px w-10 bg-white/10" />
+          </div>
+        </animated.div>
+      </div>
   );
 }
