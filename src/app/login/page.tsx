@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 
@@ -106,8 +107,14 @@ function LoginInner() {
             </button>
           </form>
 
-          <div className="mt-4 text-xs text-zinc-500">
-            Admin: create users in Supabase Auth (Email/Password). This app trusts Supabase sessions.
+          <div className="mt-4 space-y-2 text-xs text-zinc-500">
+            <p>
+              <Link href="/display" className="text-indigo-400 hover:text-indigo-300 hover:underline">
+                Public showcase
+              </Link>{" "}
+              — open to everyone (logos & event info).
+            </p>
+            <p>Admin: create users in Supabase Auth (Email/Password). This app trusts Supabase sessions.</p>
           </div>
         </div>
       </div>
