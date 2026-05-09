@@ -34,6 +34,42 @@ function parallax(scrollY: number, factor: number, reducedMotion: boolean) {
   return reducedMotion ? 0 : Math.round(scrollY * factor * 100) / 100;
 }
 
+function clamp(n: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, n));
+}
+
+function usePointerTilt({ disabled }: { disabled: boolean }) {
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const raf = useRef(0);
+  const latest = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    if (disabled) {
+      setTilt({ x: 0, y: 0 });
+      return;
+    }
+
+    const onMove = (e: PointerEvent) => {
+      const nx = (e.clientX / window.innerWidth) * 2 - 1; // [-1, 1]
+      const ny = (e.clientY / window.innerHeight) * 2 - 1; // [-1, 1]
+      latest.current = { x: clamp(nx, -1, 1), y: clamp(ny, -1, 1) };
+      if (raf.current) return;
+      raf.current = window.requestAnimationFrame(() => {
+        raf.current = 0;
+        setTilt(latest.current);
+      });
+    };
+
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      if (raf.current) cancelAnimationFrame(raf.current);
+    };
+  }, [disabled]);
+
+  return tilt;
+}
+
 export default function DisplayExperience() {
   const [scrollY, setScrollY] = useState(0);
   const reducedMotion = useReducedMotion();
@@ -64,6 +100,8 @@ export default function DisplayExperience() {
   const yFloat = parallax(scrollY, -0.06, reducedMotion);
   const heroParallax = parallax(scrollY, 0.28, reducedMotion);
   const heroCardShift = parallax(scrollY, -0.04, reducedMotion);
+
+  const pointer = usePointerTilt({ disabled: reducedMotion });
 
   const heroFile = EVENT_PHOTO_FILES[0];
   const galleryFiles = EVENT_PHOTO_FILES.slice(1);
@@ -199,8 +237,20 @@ export default function DisplayExperience() {
               <div className="absolute -inset-3 rounded-3xl bg-gradient-to-b from-blue-500/20 via-transparent to-amber-500/15 blur-xl" aria-hidden />
               <div
                 className="relative rounded-2xl border border-white/15 bg-black/55 p-5 shadow-[0_28px_80px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-8"
-                style={{ transform: `translate3d(0, ${heroCardShift}px, 0)` }}
+                style={{
+                  transform: reducedMotion
+                    ? `translate3d(0, ${heroCardShift}px, 0)`
+                    : `perspective(1100px) translate3d(0, ${heroCardShift}px, 0) rotateX(${(-pointer.y * 4.0).toFixed(3)}deg) rotateY(${(pointer.x * 5.5).toFixed(3)}deg)`,
+                  transformStyle: "preserve-3d",
+                  willChange: reducedMotion ? undefined : "transform",
+                }}
               >
+                <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
+                  <div
+                    className="absolute -inset-y-10 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/15 to-transparent"
+                    style={reducedMotion ? undefined : { animation: "aif-sheen 6.5s ease-in-out infinite" }}
+                  />
+                </div>
                 <Image
                   src="/assets/aif.png"
                   alt="Asian Innovation Forum logo"
@@ -256,27 +306,37 @@ export default function DisplayExperience() {
             <p className="mx-auto mt-3 max-w-2xl text-center text-lg font-semibold text-zinc-100 sm:text-xl">
               Keynotes, panels, exhibition floors, and meetups—capturing momentum on the ground.
             </p>
-            <div className="relative mt-10 overflow-hidden rounded-2xl ring-1 ring-white/15">
-              <div className="relative aspect-[21/10] max-h-[min(52vh,720px)] w-full sm:aspect-[21/9]">
+            <div
+              className="relative mt-10 overflow-hidden rounded-2xl ring-1 ring-white/15"
+              style={{
+                transform:
+                  reducedMotion
+                    ? undefined
+                    : `perspective(1100px) rotateX(${(-pointer.y * 2.0).toFixed(3)}deg) rotateY(${(pointer.x * 2.6).toFixed(3)}deg)`,
+                transformStyle: "preserve-3d",
+              }}
+            >
+              <div className="relative aspect-[21/10] max-h-[min(56vh,780px)] w-full sm:aspect-[21/9]">
                 <div
-                  className="absolute inset-[-12%_-6%_-6%_-6%]"
+                  className="absolute inset-0"
                   style={{
-                    transform: `translate3d(0, ${parallax(scrollY, 0.1, reducedMotion)}px, 0) scale(1.05)`,
+                    transform: `translate3d(0, ${parallax(scrollY, 0.08, reducedMotion)}px, 0) scale(1.02)`,
                   }}
                 >
                   <Image
                     src={eventPhotoSrc(EVENT_PHOTO_FILES[4])}
                     alt="Asian Innovation Forum — panel and audience highlights"
                     fill
-                    className="object-cover object-center"
+                    className="object-cover object-[50%_25%]"
                     sizes="(max-width: 768px) 100vw, 1152px"
                   />
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/55" />
                 </div>
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/40 to-transparent p-6 sm:p-8">
-                  <p className="max-w-xl text-xs text-zinc-300 sm:text-sm">
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 p-6 sm:p-8">
+                  <div className="max-w-xl rounded-xl border border-white/10 bg-black/45 px-4 py-3 text-xs text-zinc-200 backdrop-blur sm:text-sm">
                     Moments from Forum programming: conversations designed to unlock collaboration between media,
                     innovators, enterprises, and the public sphere.
-                  </p>
+                  </div>
                 </div>
               </div>
             </div>
