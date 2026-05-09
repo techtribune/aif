@@ -75,6 +75,9 @@ export default function DisplayExperience() {
   const reducedMotion = useReducedMotion();
   const rafScroll = useRef(0);
 
+  const projectsRef = useRef<HTMLElement | null>(null);
+  const [projectsRange, setProjectsRange] = useState<{ start: number; end: number }>({ start: 0, end: 1 });
+
   useEffect(() => {
     let latest = window.scrollY || 0;
     const flush = () => {
@@ -94,6 +97,33 @@ export default function DisplayExperience() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!projectsRef.current) return;
+
+    const measure = () => {
+      const el = projectsRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const top = rect.top + (window.scrollY || 0);
+      const height = rect.height;
+      // Leave a little buffer so the sticky content fully exits.
+      const start = top;
+      const end = top + Math.max(1, height - window.innerHeight * 0.35);
+      setProjectsRange({ start, end });
+    };
+
+    measure();
+    window.addEventListener("resize", measure);
+
+    // ResizeObserver helps when fonts/images cause layout shifts.
+    const ro = new ResizeObserver(measure);
+    ro.observe(projectsRef.current);
+    return () => {
+      window.removeEventListener("resize", measure);
+      ro.disconnect();
+    };
+  }, []);
+
   const scrolled = scrollY > 56;
   const ySlow = parallax(scrollY, 0.22, reducedMotion);
   const yMid = parallax(scrollY, 0.12, reducedMotion);
@@ -105,6 +135,17 @@ export default function DisplayExperience() {
 
   const heroFile = EVENT_PHOTO_FILES[0];
   const galleryFiles = EVENT_PHOTO_FILES.slice(1);
+
+  const projects = [
+    { title: "Project 01", year: "2026", file: EVENT_PHOTO_FILES[4] },
+    { title: "Project 02", year: "2026", file: EVENT_PHOTO_FILES[9] },
+    { title: "Project 03", year: "2026", file: EVENT_PHOTO_FILES[12] },
+    { title: "Project 04", year: "2026", file: EVENT_PHOTO_FILES[16] },
+    { title: "Project 05", year: "2026", file: EVENT_PHOTO_FILES[21] },
+    { title: "Project 06", year: "2026", file: EVENT_PHOTO_FILES[25] },
+  ] as const;
+
+  const projectsProgress = clamp((scrollY - projectsRange.start) / (projectsRange.end - projectsRange.start), 0, 1);
 
   return (
     <div id="top" className={`${sans.className} relative min-h-screen bg-black text-zinc-100 antialiased`}>
@@ -173,6 +214,9 @@ export default function DisplayExperience() {
             </a>
             <a href="#highlights" className="hover:text-amber-200/95">
               Highlights
+            </a>
+            <a href="#projects" className="hover:text-amber-200/95">
+              Projects
             </a>
             <a href="#moments" className="hover:text-amber-200/95">
               Moments
@@ -336,6 +380,120 @@ export default function DisplayExperience() {
                   <div className="max-w-xl rounded-xl border border-white/10 bg-black/45 px-4 py-3 text-xs text-zinc-200 backdrop-blur sm:text-sm">
                     Moments from Forum programming: conversations designed to unlock collaboration between media,
                     innovators, enterprises, and the public sphere.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Projects — pinned horizontal, heavy parallax (inspired by reference site) */}
+          <section
+            id="projects"
+            ref={(node) => {
+              projectsRef.current = node;
+            }}
+            className="scroll-mt-28 py-20 sm:scroll-mt-32 sm:py-28"
+            aria-label="Projects"
+          >
+            <div className="mx-auto max-w-6xl">
+              <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h2 className={`${pixelAccent.className} text-[10px] uppercase tracking-[0.35em] text-amber-300/95`}>
+                    Projects
+                  </h2>
+                  <p className="mt-3 max-w-2xl text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+                    Our work in full bloom — scroll to explore.
+                  </p>
+                </div>
+                <div className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">
+                  {reducedMotion ? "Reduced motion" : "Scroll = drag"}
+                </div>
+              </div>
+
+              {/* Tall wrapper to create the “pinned” feeling */}
+              <div className="relative h-[240vh]">
+                <div className="sticky top-[5.25rem] sm:top-[6.25rem]">
+                  <div
+                    className="overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/30 p-6 backdrop-blur-md sm:p-8"
+                    style={{
+                      transform: reducedMotion
+                        ? undefined
+                        : `perspective(1400px) rotateX(${(-pointer.y * 1.6).toFixed(3)}deg) rotateY(${(pointer.x * 2.0).toFixed(3)}deg)`,
+                      transformStyle: "preserve-3d",
+                    }}
+                  >
+                    <div className="flex items-end justify-between gap-6">
+                      <div className="min-w-0">
+                        <div className={`${pixelAccent.className} text-[10px] tracking-[0.3em] text-zinc-400`}>
+                          Portfolio
+                        </div>
+                        <div className="mt-2 text-sm text-zinc-300">
+                          {Math.round(projectsProgress * 100)}% explored
+                        </div>
+                      </div>
+                      <div className="hidden text-right text-xs text-zinc-400 sm:block">
+                        Scroll down
+                        <br />
+                        to move sideways
+                      </div>
+                    </div>
+
+                    <div className="mt-8 overflow-hidden">
+                      <div
+                        className="flex gap-6 will-change-transform"
+                        style={{
+                          transform: reducedMotion
+                            ? undefined
+                            : `translate3d(${-(projects.length - 1) * 18 * projectsProgress}rem, 0, 0)`,
+                          transition: reducedMotion ? undefined : "transform 40ms linear",
+                        }}
+                      >
+                        {projects.map((p, idx) => {
+                          const local = clamp(projectsProgress * (projects.length - 1) - idx, -1, 1);
+                          const z = reducedMotion ? 0 : (1 - Math.abs(local)) * 40;
+                          const rot = reducedMotion ? 0 : local * -10;
+                          const lift = reducedMotion ? 0 : (1 - Math.abs(local)) * -10;
+                          return (
+                            <article
+                              key={p.title}
+                              className="relative w-[18rem] shrink-0 sm:w-[22rem] lg:w-[26rem]"
+                              style={{
+                                transform: reducedMotion
+                                  ? undefined
+                                  : `translate3d(0, ${lift}px, ${z}px) rotateY(${rot}deg)`,
+                                transformStyle: "preserve-3d",
+                              }}
+                            >
+                              <div className="relative overflow-hidden rounded-2xl ring-1 ring-white/12">
+                                <div className="relative aspect-[4/5]">
+                                  <Image
+                                    src={eventPhotoSrc(p.file)}
+                                    alt={`AIF project image ${idx + 1}`}
+                                    fill
+                                    className="object-cover object-[50%_35%]"
+                                    sizes="(max-width: 640px) 85vw, 420px"
+                                  />
+                                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+                                </div>
+                                <div className="absolute inset-x-0 bottom-0 p-5">
+                                  <div className="flex items-baseline justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <div className="truncate text-lg font-semibold text-white">{p.title}</div>
+                                      <div className="mt-1 text-xs uppercase tracking-[0.25em] text-zinc-300/90">
+                                        Asian Innovation Forum
+                                      </div>
+                                    </div>
+                                    <div className={`${pixelAccent.className} text-[10px] text-amber-200/90`}>
+                                      {p.year}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </article>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
